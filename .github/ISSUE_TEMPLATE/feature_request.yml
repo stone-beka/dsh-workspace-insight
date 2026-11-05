@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest a view, metric, or interaction
+title: '[feat] '
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: Describe the workflow that is currently awkward.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed behavior
+      description: Screenshots or sketches welcome.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Overview
+        - Month calendar
+        - Timeline matrix
+        - Data / scanning
+        - Package / docs
+    validations:
+      required: true
