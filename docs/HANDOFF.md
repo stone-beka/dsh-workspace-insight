@@ -4,7 +4,7 @@
 
 ## 宣传片已完成（2026-11-05，v0.2.1 版）
 
-- 成片：`docs/launch/promo.mp4`（1920×1080 · 30fps · **36s** · −14 LUFS）——0.2.0 那版（31s）已被这版替换：多了总览「今日热力」约 5 秒的节拍 + 时间轴到安装之间的过渡拍（窗口拉远淡出、音乐留气口），落版 v0.2.1
+- 成片：`docs/launch/promo.mp4`（1920×1080 · 30fps · **36s** · −14 LUFS；片中的安装命令写成 `dsh plugin --profile <profile> add ...` 占位，因为 CLI 的 `--profile` 必填、桌面版叫 desktop 而 `dsh web` 叫 web）——0.2.0 那版（31s）已被这版替换：多了总览「今日热力」约 5 秒的节拍 + 时间轴到安装之间的过渡拍（窗口拉远淡出、音乐留气口），落版 v0.2.1
 - 封面（两张，B 站不同位置用不同比例）：`docs/launch/promo-cover-4x3.png`（1440×1080，首页视频卡片）、`docs/launch/promo-cover.png`（1920×1080，个人空间/头图）。版式是**左右排布**：左边大标题「工作区洞察」+ 三个视图各自的介绍（总览：谁还在用、谁该归档 / 月视图：每天按工作区对话数分色 / 时间轴：84 天矩阵，点开直达对话）+ 绿色「0.2.1 新增 · 今天又在忙什么？」；右边是**月视图日历从左往右渐变浮现**、底部渐隐。都是合成的，不是截 UI
 - 源码工程：`C:\Users\23077\Desktop\work_place\dsh-plugins\workspace-insight-promo\`
   （`brief.md` 分镜、`index.html`/`views.js` 画面、`timeline.js` 时钟、`score.mjs` 配乐）
