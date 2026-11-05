@@ -9,21 +9,35 @@
 ## 安装
 
 ```sh
-dsh plugin --profile web add dsh-workspace-insight
+# 桌面版（Desktop app）的 profile 叫 desktop；用 `dsh web` 的按你的 profile 名替换
+dsh plugin --profile desktop add dsh-workspace-insight
 ```
+
+> 一定要用**包名** `dsh-workspace-insight`。不要贴 `https://www.npmjs.com/package/...` 这种网页链接
+> —— pnpm 会把它当成 tarball 地址去下载，而 npmjs.com 的网页对非浏览器请求返回 **403**，
+> 报错就是 `ERR_PNPM_FETCH_403 ... 403 Forbidden`。用包名安装会走 registry（同一个包能正常装）。
 
 装完后**硬刷新**（Ctrl/Cmd + Shift + R）。左侧栏出现柱状图图标，点它把主区域切到「工作区洞察」；设置页里也能打开。
 
 卸载：
 
 ```sh
-dsh plugin --profile web remove dsh-workspace-insight
+dsh plugin --profile desktop remove dsh-workspace-insight
 ```
 
 ## 兼容性与前提
 
-- 需要 DSH 的 Web profile；在 DSH `0.2.2-rc.1` 上验证。Host 端解压会话日志需要 Node ≥ 20。
+- 需要 DSH 的 Web UI（`dsh web` 的 `web` profile 和桌面版的 `desktop` profile 都行）；在 DSH `0.2.2-rc.1` 上验证。Host 端解压会话日志需要 Node ≥ 20。
 - 插件直接读取 Host 的会话存储（workpsace 注册表、投影缓存、会话日志）。DSH 大版本若改动存储格式，插件会显示**警告条**而不是给出错误数字。
+
+## 安装报错排查
+
+| 报错 | 原因 | 处理 |
+|---|---|---|
+| `ERR_PNPM_FETCH_403 ... Forbidden` 或 `E403 403 Forbidden - GET https://www.npmjs.com/package/dsh-workspace-insight` | 安装时填的是 **npm 网页地址**，pnpm 把它当成 tarball 去下载，npmjs.com 的网页对非浏览器请求返回 403 | 改用包名 `dsh-workspace-insight`；如果 profile 的 `package.json` 里已经写进了这条 URL，先把它删掉（或改成版本号）再装 |
+| 同一报错里跟着 `No authorization header was set for the request` | 公共包不需要 token，这句是 pnpm 的附带提示，不是失败原因 | 忽略；只有 `401` 才需要配 token |
+| `profile not found` / 找不到 profile | profile 名不对：桌面版是 `desktop`，`dsh web` 的是 `web` | `dsh plugin --profile <名字> list` 确认实际名字 |
+| 装完左侧栏没有图标 | 没硬刷新，或插件行没启用 | `Ctrl/Cmd + Shift + R`；设置 → 插件 → 确认这一行是启用状态 |
 
 ## 隐私
 
