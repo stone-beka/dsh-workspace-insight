@@ -14,16 +14,16 @@
 
 ## 一句话现状
 
-插件 **已开源发布**：npm `0.2.0` 是 `latest`，GitHub 仓库和 `v0.2.0` Release 都在，本机以 `link:` 方式装在 `desktop` profile 里，改代码即时生效。
+插件 **已开源发布**：npm `0.2.1` 是 `latest`（含「今日热力」+ 月视图重做），GitHub 仓库和 `v0.2.1` Release 都在，本机以 `link:` 方式装在 `desktop` profile 里，改代码即时生效。
 
 - 仓库：https://github.com/stone-beka/dsh-workspace-insight
 - npm：https://www.npmjs.com/package/dsh-workspace-insight
-- Release：https://github.com/stone-beka/dsh-workspace-insight/releases/tag/v0.2.0
-- 最新提交：`bbbab04`（`main` 与远端同步，工作区干净）
+- Release：https://github.com/stone-beka/dsh-workspace-insight/releases/tag/v0.2.1
+- 最新提交：`0183c66`（`main` 与远端同步，工作区干净）
 
 ## 发布出去的包
 
-- 包名 `dsh-workspace-insight`，版本 `0.2.0`，11 个文件 / 32.4 kB
+- 包名 `dsh-workspace-insight`，版本 `0.2.1`，11 个文件 / 39.5 kB
 - 安装：`dsh plugin --profile web add dsh-workspace-insight`（装完硬刷新）
 - 许可 MIT；Host 端需要 Node ≥ 20
 
@@ -50,11 +50,21 @@
 - `v2ex.md` / `jike.md` / `sspai.md` / `dshfind.md` / `bilibili.md` — 各平台文案，B 站那份含 30 秒口播稿和时间轴章节
 - 截图放 `docs/launch/img/`：`overview.png`、`month.png`、`timeline.png`
 
+## 发 npm（0.2.1 踩过的坑，下次照这个来）
+
+账号开了 2FA，方式是 **security key**（没有验证器 App，所以没有 6 位码）。`npm publish` 必须过一道浏览器授权：
+
+1. 在**真实控制台**里跑 `npm publish --access public`（PowerShell/CMD 窗口都行）。**不要**把输出重定向到文件、也不要用隐藏窗口——npm 拿不到 TTY 就直接 `EOTP` 失败，连授权页都不给你。
+2. 看到 `Press ENTER to open in the browser…` 后回车，浏览器会打开 `https://www.npmjs.com/auth/cli/...`，用安全密钥（Windows Hello 指纹/PIN，或硬件钥匙）完成验证。
+3. 成功后 npm 返回 `202` + “Your package is being processed”，**registry 里要 1–2 分钟**才出现新版本、`dist-tags.latest` 随后才更新，别急着查。
+4. 自己写脚本轮询 `/-/v1/done?authId=` **行不通**：授权会话绑在活着的 CLI 进程上，CLI 一退出就 404。
+5. 长期方案：给包配 **Trusted Publishing**（GitHub OIDC）——workflow 用 `id-token: write` + `npm publish --provenance`，推 tag 自动发版，不需要安全密钥。
+
 ## 只剩这些待办
 
 1. 截图/GIF（需要有界面的人来截）
-2. **撤销聊天里暴露的 npm token**：https://www.npmjs.com/settings/~/tokens
-3. 建 CI 用 token（Granular，勾 Bypass 2FA）→ 仓库 Secrets `NPM_TOKEN`；配置后推 `v*` tag 会自动发版（工作流已带守卫，未配置不会失败）
+2. **撤销聊天里暴露的 npm token**：https://www.npmjs.com/settings/~/tokens （本机 `.npmrc` 现在用的是 0.2.1 发布时 `npm login --auth-type=web` 新发的 session token；旧 token 还在的话要删）
+3. 配 **Trusted Publishing**（GitHub Actions OIDC）替代 `NPM_TOKEN`：npm 包设置里加 trusted publisher，workflow 改成 Node 22 + `--provenance`（工作流已带守卫，未配置时不会失败）
 4. 清掉 npm 上的 `0.0.0-stage` 占位：`npm unpublish dsh-workspace-insight@0.0.0-stage`
 5. 提交插件目录（`docs/launch/dshfind.md`）
 

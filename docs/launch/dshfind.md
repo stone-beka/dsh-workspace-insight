@@ -47,7 +47,7 @@ dsh plugin --profile web add dsh-workspace-insight
 
 - 仓库：https://github.com/stone-beka/dsh-workspace-insight
 - npm：https://www.npmjs.com/package/dsh-workspace-insight
-- Release：https://github.com/stone-beka/dsh-workspace-insight/releases/tag/v0.2.0
+- Release：https://github.com/stone-beka/dsh-workspace-insight/releases/tag/v0.2.1
 - 许可：MIT
 
 ## 兼容性

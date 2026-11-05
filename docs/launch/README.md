@@ -24,7 +24,7 @@
 
 ## 发布顺序建议
 
-1. 先发 GitHub Release（已完成 `v0.2.0`），确认 npm 页面能打开
+1. 先发 GitHub Release（已完成 `v0.2.1`），确认 npm 页面能打开
 2. 提交插件目录（`dshfind.md`）
 3. 发 V2EX（技术受众，能引 issue）
 4. 发即刻 + B 站（传播）
