@@ -7,3 +7,4 @@ Thumbs.db
 # Promo film and cover: published as Release assets, not tracked in git
 docs/launch/promo.mp4
 docs/launch/promo-cover.png
+docs/launch/promo-cover-4x3.png
