@@ -1,5 +1,7 @@
 # dsh-workspace-insight
 
+[![npm version](https://img.shields.io/npm/v/dsh-workspace-insight.svg)](https://www.npmjs.com/package/dsh-workspace-insight) [![license](https://img.shields.io/npm/l/dsh-workspace-insight.svg)](LICENSE)
+
 给 DSH Web UI 加一块**工作区 / 会话活动看板**：哪些工作区还活着、它们跑了哪些对话、花了多少时间、哪些可以放心归档。全部只读本地数据，不出本机。
 
 [English](README_EN.md) | 中文

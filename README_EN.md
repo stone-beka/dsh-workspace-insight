@@ -1,5 +1,7 @@
 # dsh-workspace-insight
 
+[![npm version](https://img.shields.io/npm/v/dsh-workspace-insight.svg)](https://www.npmjs.com/package/dsh-workspace-insight) [![license](https://img.shields.io/npm/l/dsh-workspace-insight.svg)](LICENSE)
+
 A workspace and session activity dashboard for the **DSH Web UI**: see which workspaces are alive, what sessions they ran, how much time they took — and which ones you can safely archive.
 
 [中文](README.md) | English
