@@ -1,0 +1,4 @@
+# Host rows for the workspace insight bundle.
+- insert:
+    - id: workspace-insight
+      name: 'dsh-workspace-insight'
