@@ -4,7 +4,7 @@
 
 ## 宣传片已完成（2026-11-05，v0.2.1 版）
 
-- 成片：`docs/launch/promo.mp4`（1920×1080 · 30fps · **34s** · −14 LUFS）——0.2.0 那版（31s）已被这版替换：多了总览「今日热力」约 3 秒的节拍，落版 v0.2.1
+- 成片：`docs/launch/promo.mp4`（1920×1080 · 30fps · **36s** · −14 LUFS）——0.2.0 那版（31s）已被这版替换：多了总览「今日热力」约 5 秒的节拍 + 时间轴到安装之间的过渡拍（窗口拉远淡出、音乐留气口），落版 v0.2.1
 - 封面：`docs/launch/promo-cover.png`（总览「今日热力」铺底 + 左侧标题卡）
 - 源码工程：`C:\Users\23077\Desktop\work_place\dsh-plugins\workspace-insight-promo\`
   （`brief.md` 分镜、`index.html`/`views.js` 画面、`timeline.js` 时钟、`score.mjs` 配乐）
