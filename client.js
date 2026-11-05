@@ -62,6 +62,12 @@ window.__ModuleLoader__.load({
       sortRecent: '按最近使用',
       sortWork: '按耗时',
       sortCount: '按会话数',
+      today: '今天',
+      todayPill: '今日',
+      todayNew: '今天新开',
+      todayHint: '绿色越深 = 今天在这个工作区新开 / 再用的对话越多',
+      onlyThisWs: '只看这个工作区',
+      inTimeline: '在时间轴看',
       monthAll: '全部工作区',
       prevMonth: '上个月',
       nextMonth: '下个月',
@@ -152,6 +158,12 @@ window.__ModuleLoader__.load({
       sortRecent: 'By recency',
       sortWork: 'By work time',
       sortCount: 'By sessions',
+      today: 'Today',
+      todayPill: 'Today',
+      todayNew: 'new today',
+      todayHint: 'Darker green = more conversations started or reused in that workspace today',
+      onlyThisWs: 'Only this workspace',
+      inTimeline: 'In timeline',
       monthAll: 'All workspaces',
       prevMonth: 'Previous month',
       nextMonth: 'Next month',
@@ -220,6 +232,9 @@ window.__ModuleLoader__.load({
 
     // 周一到周日各一种颜色，同一个星期几在全表里保持同色。
     const WEEK_PALETTE = ['#e5484d', '#f2994a', '#d4b106', '#27ae60', '#2d9cdb', '#5b5bd6', '#9b51e0']
+
+    // 今日热度用这一个绿，不跟工作区身份色混。
+    const HEAT = '#1e9e5a'
 
     function weekdayIndex(key) {
       return (parseDay(key).getDay() + 6) % 7
@@ -427,7 +442,50 @@ window.__ModuleLoader__.load({
       const [filter, setFilter] = useState('all')
       const [sort, setSort] = useState('recent')
       const [expanded, setExpanded] = useState({})
+      const [hoverToday, setHoverToday] = useState(null)
       const now = Date.now()
+
+      // ── 今日：今天用过 / 今天新开的对话，按工作区聚合 ──────────────────
+      const dayStart = new Date()
+      dayStart.setHours(0, 0, 0, 0)
+      const todayStart = dayStart.getTime()
+      const todayEnd = todayStart + 86400000
+      const inToday = (ts) => typeof ts === 'number' && ts >= todayStart && ts < todayEnd
+
+      const wsColor = useMemo(() => overviewColors(doc), [doc])
+
+      const titleOf = useMemo(() => {
+        const m = new Map()
+        for (const w of doc.workspaces.concat(doc.unassigned || [])) m.set(w.id || w.path, w.title)
+        return m
+      }, [doc])
+
+      const today = useMemo(() => {
+        const byKey = new Map()
+        let sessions = 0
+        let created = 0
+        const all = doc.workspaces.concat(doc.unassigned || [])
+        for (const r of all) {
+          const key = r.id || r.path
+          const items = []
+          let fresh = 0
+          for (const s of r.sessionList) {
+            if (!inToday(s.lastAt)) continue
+            const isNew = inToday(s.createdAt)
+            if (isNew) fresh += 1
+            items.push({ id: s.id, title: s.title, lastAt: s.lastAt, isNew })
+          }
+          if (!items.length) continue
+          items.sort((a, b) => b.lastAt - a.lastAt)
+          byKey.set(key, { total: items.length, fresh, items })
+          sessions += items.length
+          created += fresh
+        }
+        return { byKey, sessions, created, workspaces: byKey.size }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [doc, todayStart])
+
+      const heatOf = (n) => (n >= 6 ? 26 : n >= 3 ? 16 : 8)
 
       const rows = useMemo(() => {
         let list = doc.workspaces.slice()
@@ -447,8 +505,10 @@ window.__ModuleLoader__.load({
         ['cold', t('cold')],
       ]
 
-      const renderSession = (s) =>
-        h(
+      const renderSession = (s) => {
+        const todaySession = inToday(s.lastAt)
+        const isNew = todaySession && inToday(s.createdAt)
+        return h(
           'div',
           {
             key: s.id,
@@ -461,6 +521,8 @@ window.__ModuleLoader__.load({
               borderTop: '1px solid ' + COLOR.border,
               fontSize: 12,
               opacity: s.archived ? 0.55 : 1,
+              background: todaySession ? 'color-mix(in srgb, ' + HEAT + ' 8%, transparent)' : 'transparent',
+              boxShadow: todaySession ? 'inset 3px 0 0 color-mix(in srgb, ' + HEAT + ' 55%, transparent)' : 'none',
             },
           },
           h(
@@ -468,8 +530,29 @@ window.__ModuleLoader__.load({
             { style: { minWidth: 0 } },
             h(
               'div',
-              { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: s.title },
-              s.title,
+              { style: { display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 } },
+              todaySession
+                ? h(
+                    'span',
+                    {
+                      style: {
+                        flex: '0 0 auto',
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        borderRadius: 5,
+                        padding: '1px 6px',
+                        color: 'color-mix(in srgb, ' + HEAT + ' 72%, ' + COLOR.text + ')',
+                        background: 'color-mix(in srgb, ' + HEAT + ' 16%, transparent)',
+                      },
+                    },
+                    isNew ? t('todayNew') : t('today'),
+                  )
+                : null,
+              h(
+                'div',
+                { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }, title: s.title },
+                s.title,
+              ),
             ),
             s.archived ? h('div', { style: { marginTop: 2 } }, h(Badge, { label: t('archived'), color: COLOR.idle })) : null,
           ),
@@ -487,6 +570,7 @@ window.__ModuleLoader__.load({
             ),
           ),
         )
+      }
 
       const renderRow = (r) => {
         const open = expanded[r.id] === true
@@ -495,14 +579,38 @@ window.__ModuleLoader__.load({
           'div',
           {
             key: (r.id || 'unassigned') + r.path,
-            style: { border: '1px solid ' + COLOR.border, borderRadius: 10, background: COLOR.layer1, marginBottom: 8, overflow: 'hidden' },
+            style: {
+              position: 'relative',
+              border: '1px solid ' + COLOR.border,
+              borderRadius: 10,
+              background: COLOR.layer1,
+              marginBottom: 8,
+              overflow: 'hidden',
+            },
           },
+          h('div', {
+            style: {
+              position: 'absolute',
+              left: 0,
+              top: 8,
+              bottom: 8,
+              width: 3,
+              borderRadius: 2,
+              background: (() => {
+                const c = wsColor.get(r.id || r.path)
+                if (!c) return 'transparent'
+                return today.byKey.get(r.id || r.path)
+                  ? c
+                  : 'color-mix(in srgb, ' + c + ' 30%, transparent)'
+              })(),
+            },
+          }),
           h(
             'div',
             {
               style: {
                 display: 'grid',
-                gridTemplateColumns: 'minmax(220px, 1fr) 92px 74px 64px 108px 86px 150px',
+                gridTemplateColumns: 'minmax(200px, 1fr) 92px 74px 64px 108px 86px 88px 150px',
                 gap: 10,
                 alignItems: 'center',
                 padding: '9px 12px',
@@ -536,6 +644,35 @@ window.__ModuleLoader__.load({
             h('div', { style: { fontSize: 12, color: COLOR.dim } }, String(r.turns)),
             h('div', { style: { fontSize: 12 } }, dur(r.workMs)),
             h('div', { style: { display: 'flex', alignItems: 'center' } }, h(Spark, { values: r.trend })),
+            (() => {
+              const td = today.byKey.get(r.id || r.path)
+              if (!td) return h('div', { style: { fontSize: 12, color: COLOR.borderStrong } }, '—')
+              return h(
+                'div',
+                { style: { display: 'flex' } },
+                h(
+                  'span',
+                  {
+                    onMouseEnter: (e) => setHoverToday({ key: r.id || r.path, x: e.clientX, y: e.clientY }),
+                    onMouseLeave: () => setHoverToday(null),
+                    style: {
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 52,
+                      padding: '3px 8px',
+                      borderRadius: 7,
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      cursor: 'help',
+                      color: 'color-mix(in srgb, ' + HEAT + ' 72%, ' + COLOR.text + ')',
+                      background: 'color-mix(in srgb, ' + HEAT + ' ' + heatOf(td.total) + '%, transparent)',
+                    },
+                  },
+                  t('todayPill') + ' ' + td.total,
+                ),
+              )
+            })(),
             h('div', { style: { fontSize: 11, color: COLOR.dim, textAlign: 'right' } }, open ? t('collapse') : t('expand')),
           ),
           open
@@ -546,6 +683,96 @@ window.__ModuleLoader__.load({
                   ? r.sessionList.map(renderSession)
                   : h('div', { style: { padding: '10px 4px', color: COLOR.dim, fontSize: 12 } }, t('noSessions')),
               )
+            : null,
+        )
+      }
+
+      // 悬停「今日 N」：浮层列出今天在这个工作区用过的对话（数量、新开、时间）
+      const renderTodayTip = () => {
+        const rec = today.byKey.get(hoverToday.key)
+        if (!rec) return null
+        const shown = rec.items.slice(0, 6)
+        const width = 300
+        const height = 44 + shown.length * 22 + (rec.items.length > 6 ? 20 : 0)
+        const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
+        const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+        const left = Math.max(8, Math.min(hoverToday.x + 14, vw - width - 8))
+        const top = hoverToday.y + height + 22 > vh ? Math.max(8, hoverToday.y - height - 14) : hoverToday.y + 18
+        const hhmm = (ts) => {
+          const d = new Date(ts)
+          return pad2(d.getHours()) + ':' + pad2(d.getMinutes())
+        }
+        return h(
+          'div',
+          {
+            key: 'today-tip',
+            style: {
+              position: 'fixed',
+              left,
+              top,
+              zIndex: 1000,
+              width,
+              padding: '10px 12px',
+              borderRadius: 10,
+              border: '1px solid ' + COLOR.borderStrong,
+              background: COLOR.layer1,
+              boxShadow: '0 14px 36px rgba(0, 0, 0, 0.20)',
+              pointerEvents: 'none',
+            },
+          },
+          h(
+            'div',
+            { style: { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 } },
+            h(
+              'div',
+              { style: { flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+              titleOf.get(hoverToday.key) || '',
+            ),
+            h(
+              'span',
+              { style: { flex: '0 0 auto', fontSize: 11, fontWeight: 600, color: 'color-mix(in srgb, ' + HEAT + ' 72%, ' + COLOR.text + ')' } },
+              t('todayPill') + ' ' + rec.total,
+            ),
+          ),
+          h(
+            'div',
+            { style: { fontSize: 11, color: COLOR.dim, marginBottom: 6 } },
+            rec.fresh ? t('todayNew') + ' ' + rec.fresh : t('todayHint'),
+          ),
+          shown.map((s) =>
+            h(
+              'div',
+              { key: s.id, style: { display: 'flex', alignItems: 'center', gap: 8, height: 22 } },
+              h(
+                'span',
+                { style: { flex: '0 0 auto', fontSize: 10.5, color: COLOR.dim, fontVariantNumeric: 'tabular-nums' } },
+                hhmm(s.lastAt),
+              ),
+              h(
+                'span',
+                { style: { flex: 1, minWidth: 0, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                s.title,
+              ),
+              s.isNew
+                ? h(
+                    'span',
+                    {
+                      style: {
+                        flex: '0 0 auto',
+                        fontSize: 10,
+                        borderRadius: 4,
+                        padding: '0 4px',
+                        color: 'color-mix(in srgb, ' + HEAT + ' 72%, ' + COLOR.text + ')',
+                        background: 'color-mix(in srgb, ' + HEAT + ' 16%, transparent)',
+                      },
+                    },
+                    t('todayNew'),
+                  )
+                : null,
+            ),
+          ),
+          rec.items.length > 6
+            ? h('div', { style: { fontSize: 11, color: COLOR.dim, marginTop: 4 } }, '+' + (rec.items.length - 6) + ' ' + t('conversations'))
             : null,
         )
       }
@@ -562,6 +789,40 @@ window.__ModuleLoader__.load({
           h(StatCard, { label: t('sleeping'), value: String(doc.totals.sleeping) }),
           h(StatCard, { label: t('archivedSessions'), value: String(doc.totals.archivedSessions) }),
         ),
+        today.sessions
+          ? h(
+              'div',
+              { style: { display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' } },
+              h(
+                'span',
+                {
+                  style: {
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '3px 9px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'color-mix(in srgb, ' + HEAT + ' 72%, ' + COLOR.text + ')',
+                    background: 'color-mix(in srgb, ' + HEAT + ' 14%, transparent)',
+                  },
+                },
+                '● ' +
+                  t('today') +
+                  ' ' +
+                  today.workspaces +
+                  ' ' +
+                  t('workspacesUsed') +
+                  ' · ' +
+                  today.sessions +
+                  ' ' +
+                  t('conversations') +
+                  (today.created ? ' (' + t('todayNew') + ' ' + today.created + ')' : ''),
+              ),
+              h('span', { style: { fontSize: 11.5, color: COLOR.dim } }, t('todayHint')),
+            )
+          : null,
         h(
           'div',
           { style: { display: 'flex', gap: 6, marginTop: 16, alignItems: 'center', flexWrap: 'wrap' } },
@@ -617,6 +878,7 @@ window.__ModuleLoader__.load({
               doc.unassigned.map(renderRow),
             )
           : null,
+        hoverToday ? renderTodayTip() : null,
       )
     }
 
@@ -658,6 +920,25 @@ window.__ModuleLoader__.load({
       return map
     }
 
+    // 总览里的工作区身份色：沿用月视图 / 时间轴那套「按活跃度分段 + 黄金角取色」，
+    // 让同一个工作区在各视图里尽量是同一个颜色（总览拿不到 activity，用 lastAt 近似排序）。
+    function overviewColors(doc) {
+      const bucketOf = (age) => (age === null || age === undefined ? 3 : age <= 7 ? 0 : age <= 14 ? 1 : age <= 21 ? 2 : 3)
+      const list = doc.workspaces
+        .concat(doc.unassigned || [])
+        .filter((r) => r.sessions > 0 && r.lastAt)
+        .map((r) => ({ id: r.id || r.path, age: r.days, lastAt: r.lastAt || 0, title: r.title }))
+        .sort(
+          (a, b) =>
+            bucketOf(a.age) - bucketOf(b.age) ||
+            b.lastAt - a.lastAt ||
+            String(a.title).localeCompare(String(b.title)),
+        )
+      const map = new Map()
+      list.forEach((c, i) => map.set(c.id, 'hsl(' + Math.round((i * 137.508) % 360) + ', 62%, 52%)'))
+      return map
+    }
+
     function MonthView({ activity, t, act, busy, goTimeline }) {
       const now = new Date()
       const todayKey = dayKeyOf(now)
@@ -666,6 +947,30 @@ window.__ModuleLoader__.load({
       const [month, setMonth] = useState(currentMonth)
       const [wsFilter, setWsFilter] = useState('')
       const [selectedDay, setSelectedDay] = useState(null)
+      // 只有一种浮层：悬停预览（{ day, wsId, rect }），只在悬停彩色段时出现
+      // 选中某天的输出是下面的「当天记录」面板，不弹浮层
+      const [peek, setPeek] = useState(null)
+      const [hoverRow, setHoverRow] = useState(null)
+      const peekKeyRef = useRef(null)
+      const detailRef = useRef(null)
+      const peekTimer = useRef(null)
+      const keepPeek = useCallback(() => {
+        if (peekTimer.current) {
+          clearTimeout(peekTimer.current)
+          peekTimer.current = null
+        }
+      }, [])
+      // 软浮层贴在段旁边而不是跟着鼠标，所以离开格子后要留一点时间给指针移进浮层
+      const clearPeekSoon = useCallback(() => {
+        if (peekTimer.current) clearTimeout(peekTimer.current)
+        peekTimer.current = setTimeout(() => {
+          peekKeyRef.current = null
+          setPeek(null)
+        }, 260)
+      }, [])
+      useEffect(() => () => {
+        if (peekTimer.current) clearTimeout(peekTimer.current)
+      }, [])
 
       const colorMap = useMemo(() => columnColorsFor(activity, todayTs), [activity, todayTs])
 
@@ -757,26 +1062,18 @@ window.__ModuleLoader__.load({
 
       const dayWorkspaces = useCallback(
         (day) => {
+          // the calendar keeps every workspace on a day even while one is filtered:
+          // the filtered one stays solid, the others fade, so the month shape is still readable
           const dayMap = monthIndex.byDay.get(day)
           if (!dayMap) return []
           const out = []
           for (const [wsId, set] of dayMap) {
-            if (wsFilter && wsId !== wsFilter) continue
             out.push({ wsId, count: set.size })
           }
           return out.sort((a, b) => b.count - a.count)
         },
-        [monthIndex, wsFilter],
+        [monthIndex],
       )
-
-      const maxCount = useMemo(() => {
-        let max = 1
-        for (const c of cells) {
-          if (!c) continue
-          if (dayCount(c) > max) max = dayCount(c)
-        }
-        return max
-      }, [cells, dayCount])
 
       const activeDays = useMemo(() => cells.filter((c) => c && dayCount(c) > 0), [cells, dayCount])
       const filteredMonth = useMemo(
@@ -816,6 +1113,12 @@ window.__ModuleLoader__.load({
       }, [activity, month, wsFilter, monthSessionCount])
 
       useEffect(() => {
+        // 翻月时收起悬停预览
+        setPeek(null)
+        peekKeyRef.current = null
+      }, [month])
+
+      useEffect(() => {
         const has = (d) => dayCount(d) > 0
         if (has(todayKey) && todayKey.slice(0, 7) === month) setSelectedDay(todayKey)
         else setSelectedDay(activeDays[0] ?? null)
@@ -840,6 +1143,153 @@ window.__ModuleLoader__.load({
 
       const momText =
         mom.diff === 0 ? t('momFlat') : (mom.diff > 0 ? '+' : '') + mom.diff + ' ' + t('momCompare')
+
+      // 只有一种浮层：悬停彩色段 → 这个工作区当天的会话列表（行可点 = 跳转到那个对话）
+      // 悬停日期 / 格子空白不再弹浮层（当天忙不忙一眼能看出来，完整列表在下方「当天记录」里）
+      const renderTip = () => {
+        if (!peek || !peek.wsId) return null
+        const day = peek.day
+        const dayMap = monthIndex.byDay.get(day)
+        const set = dayMap && dayMap.get(peek.wsId)
+        if (!set || !set.size) return null
+        const ids = [...set]
+        const anchor = peek.rect
+        const ROW = 24
+        const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
+        const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+        const bodyH = ids.length * ROW
+        const footerH = 38
+        const width = 340
+        // 贴在格子下方（鼠标从段里往下移出来，不会经过别的段，才能点到浮层里的行）
+        const spaceBelow = (anchor ? vh - anchor.bottom : vh) - 14
+        const spaceAbove = (anchor ? anchor.top : vh) - 14
+        const listMax = Math.max(112, Math.min(bodyH, Math.max(spaceBelow, spaceAbove) - 46))
+        const height = 40 + Math.min(bodyH, listMax) + footerH
+        let left = anchor ? Math.min(Math.max(8, anchor.left), Math.max(8, vw - width - 8)) : 8
+        let top = anchor ? anchor.bottom + 6 : 8
+        if (anchor && top + height > vh - 8) top = Math.max(8, anchor.top - height - 6)
+        const dayLabel =
+          Number(day.slice(5, 7)) + ' 月 ' + Number(day.slice(8)) + ' 日' + (day === todayKey ? ' · ' + t('today') : '')
+        const headLabel = (wsTitle.get(peek.wsId) || peek.wsId) + ' · ' + dayLabel
+        const dot = (wsId) =>
+          h('span', {
+            style: {
+              width: 7,
+              height: 7,
+              borderRadius: 4,
+              flex: '0 0 auto',
+              background: colorMap.get(wsId) || COLOR.brand,
+            },
+          })
+        const openSession = (sid) => {
+          setPeek(null)
+          peekKeyRef.current = null
+          if (act) act(sid, 'open')
+        }
+        const focusWs = (wsId) => {
+          setPeek(null)
+          peekKeyRef.current = null
+          setWsFilter(wsId === wsFilter ? '' : wsId)
+        }
+        const tipRow = (key, wsId, label, right, onPick) =>
+          h(
+            'div',
+            {
+              key,
+              onClick: onPick,
+              onMouseEnter: () => setHoverRow(key),
+              onMouseLeave: () => setHoverRow(null),
+              title: label,
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                height: ROW - 2,
+                padding: '0 6px',
+                marginLeft: -6,
+                borderRadius: 6,
+                cursor: 'pointer',
+                background: hoverRow === key ? 'color-mix(in srgb, ' + COLOR.brand + ' 8%, transparent)' : 'transparent',
+              },
+            },
+            dot(wsId),
+            h(
+              'span',
+              { style: { flex: 1, minWidth: 0, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+              label,
+            ),
+            right
+              ? h('span', { style: { flex: '0 0 auto', fontSize: 10.5, color: COLOR.dim } }, right)
+              : h(
+                  'span',
+                  {
+                    style: {
+                      flex: '0 0 auto',
+                      fontSize: 10.5,
+                      color: hoverRow === key ? COLOR.brand : COLOR.dim,
+                      opacity: hoverRow === key ? 1 : 0.6,
+                    },
+                  },
+                  t('open') + ' ›',
+                ),
+          )
+
+        return h(
+          'div',
+          {
+            key: 'day-tip',
+            style: {
+              position: 'fixed',
+              left,
+              top,
+              zIndex: 1000,
+              width,
+              padding: '9px 12px 10px',
+              borderRadius: 10,
+              border: '1px solid ' + COLOR.borderStrong,
+              background: COLOR.layer1,
+              boxShadow: '0 14px 36px rgba(0, 0, 0, 0.20)',
+              pointerEvents: 'auto',
+            },
+            onMouseEnter: () => keepPeek(),
+            onMouseLeave: () => clearPeekSoon(),
+          },
+          h(
+            'div',
+            { style: { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 } },
+            h('div', { style: { flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, headLabel),
+            h(
+              'span',
+              { style: { flex: '0 0 auto', fontSize: 11, color: COLOR.dim } },
+              ids.length + ' ' + t('conversations'),
+            ),
+          ),
+          h(
+            'div',
+            { style: { maxHeight: listMax, overflowY: 'auto', overflowX: 'hidden', marginRight: -6, paddingRight: 6 } },
+            ids.map((sid) => tipRow(sid, peek.wsId, (sessInfo.get(sid) || {}).title || sid, null, () => openSession(sid))),
+          ),
+          h(
+            'div',
+            { style: { display: 'flex', gap: 6, marginTop: 6, paddingTop: 6, borderTop: '1px solid ' + COLOR.border } },
+            h('button', { style: btnStyle(true), onClick: () => focusWs(peek.wsId) }, t('onlyThisWs')),
+            goTimeline
+              ? h(
+                  'button',
+                  {
+                    style: btnStyle(false),
+                    onClick: () => {
+                      setPeek(null)
+                      peekKeyRef.current = null
+                      goTimeline(peek.wsId)
+                    },
+                  },
+                  t('inTimeline'),
+                )
+              : null,
+          ),
+        )
+      }
 
       return h(
         'div',
@@ -873,6 +1323,49 @@ window.__ModuleLoader__.load({
             h('option', { value: '' }, t('monthAll')),
             usedWs.map((id) => h('option', { key: id, value: id }, wsTitle.get(id) || id)),
           ),
+          wsFilter
+            ? (() => {
+                const chipColor = colorMap.get(wsFilter) || COLOR.brand
+                return h(
+                  'span',
+                  {
+                    style: {
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '3px 7px 3px 8px',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: COLOR.text,
+                      background: 'color-mix(in srgb, ' + chipColor + ' 14%, transparent)',
+                      border: '1px solid color-mix(in srgb, ' + chipColor + ' 32%, transparent)',
+                    },
+                  },
+                  h('span', {
+                    style: { width: 7, height: 7, borderRadius: 4, background: chipColor },
+                  }),
+                  wsTitle.get(wsFilter) || wsFilter,
+                  h(
+                    'button',
+                    {
+                      style: {
+                        background: 'none',
+                        border: 0,
+                        padding: '0 1px',
+                        color: COLOR.dim,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        lineHeight: 1,
+                      },
+                      onClick: () => setWsFilter(''),
+                      title: t('monthAll'),
+                    },
+                    '×',
+                  ),
+                )
+              })()
+            : null,
         ),
         h(
           'div',
@@ -882,7 +1375,6 @@ window.__ModuleLoader__.load({
           h('span', null, '· ' + monthWsCount + ' ' + t('workspacesUsed')),
           h('span', null, '· ' + t('streak') + ' ' + streak + ' ' + t('days')),
           h('span', { style: { color: mom.diff >= 0 ? COLOR.brand : COLOR.error } }, '· ' + momText),
-          wsFilter ? h('span', null, '· ' + (wsTitle.get(wsFilter) || wsFilter)) : null,
         ),
         wsFilter && !monthRecords.filter((r) => r.w === wsFilter).length
           ? h(
@@ -897,7 +1389,7 @@ window.__ModuleLoader__.load({
             style: {
               display: 'grid',
               gridTemplateColumns: 'repeat(7, minmax(86px, 1fr))',
-              gap: 4,
+              gap: 7,
               marginTop: 10,
               overflowX: 'auto',
             },
@@ -911,15 +1403,15 @@ window.__ModuleLoader__.load({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 3,
-                  fontSize: 11,
-                  color: COLOR.dim,
-                  padding: '2px 0',
+                  gap: 4,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: WEEK_PALETTE[i],
+                  background: 'color-mix(in srgb, ' + WEEK_PALETTE[i] + ' 9%, transparent)',
+                  borderRadius: 8,
+                  padding: '5px 0',
                 },
               },
-              h('span', {
-                style: { width: 5, height: 5, borderRadius: 3, background: WEEK_PALETTE[i], display: 'inline-block' },
-              }),
               w,
             ),
           ),
@@ -931,38 +1423,70 @@ window.__ModuleLoader__.load({
             const wd = weekdayIndex(day)
             const isWeekend = wd >= 5
             const wsOnDay = dayWorkspaces(day)
-            const total = wsOnDay.reduce((sum, x) => sum + x.count, 0)
-            const titleText =
-              day +
-              ' · ' +
-              c +
-              ' ' +
-              t('conversations') +
-              (wsOnDay.length
-                ? '\n' + wsOnDay.map((x) => (wsTitle.get(x.wsId) || x.wsId) + ' ×' + x.count).join('\n')
-                : '')
+            const active = isToday || selected
             return h(
               'div',
               {
                 key: day,
-                onClick: () => setSelectedDay(day),
-                title: titleText,
+                onClick: () => {
+                  setSelectedDay(day)
+                  setPeek(null)
+                  peekKeyRef.current = null
+                  // 选中某天的输出是下面那块「当天记录」：把它滚进视野
+                  const el = detailRef.current
+                  if (el && el.scrollIntoView) {
+                    try {
+                      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+                    } catch {
+                      el.scrollIntoView()
+                    }
+                  }
+                },
+                onMouseMove: (e) => {
+                  keepPeek()
+                  const hit = e.target && e.target.closest ? e.target.closest('[data-insight-ws]') : null
+                  // 段之间的缝隙 / 格子内边距：保持当前预览不动，指针才能顺利移到浮层上；
+                  // 但换到别的日子时旧预览要收掉
+                  if (!hit) {
+                    if (peek && peek.day !== day) {
+                      peekKeyRef.current = null
+                      setPeek(null)
+                    }
+                    return
+                  }
+                  const ws = hit.getAttribute('data-insight-ws')
+                  const next = 'segment|' + day + '|' + ws
+                  if (next === peekKeyRef.current) return
+                  peekKeyRef.current = next
+                  const r = hit.getBoundingClientRect()
+                  setPeek({
+                    day,
+                    wsId: ws,
+                    rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
+                  })
+                },
+                onMouseLeave: () => {
+                  clearPeekSoon()
+                },
                 style: {
                   height: 118,
-                  borderRadius: 8,
+                  borderRadius: 10,
                   cursor: 'pointer',
                   overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
-                  background: c
-                    ? 'transparent'
+                  background: isToday
+                    ? 'color-mix(in srgb, ' + COLOR.brand + ' 7%, transparent)'
                     : isWeekend
-                      ? 'color-mix(in srgb, ' + COLOR.dim + ' 8%, transparent)'
-                      : 'transparent',
-                  border: '1px solid ' + (isToday || selected ? COLOR.brand : COLOR.border),
-                  boxShadow: isToday ? '0 0 0 1px ' + COLOR.brand + ' inset' : 'none',
+                      ? 'color-mix(in srgb, ' + COLOR.dim + ' 9%, transparent)'
+                      : 'color-mix(in srgb, ' + COLOR.dim + ' 4%, transparent)',
+                  border: '1px solid transparent',
+                  boxShadow: active
+                    ? 'inset 0 0 0 1.5px ' + (isToday ? COLOR.brand : COLOR.borderStrong)
+                    : 'none',
                 },
               },
+              // date row: weekday-coloured number + how many conversations that day
               h(
                 'div',
                 {
@@ -970,8 +1494,7 @@ window.__ModuleLoader__.load({
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'baseline',
-                    padding: '3px 6px',
-                    fontSize: 12,
+                    padding: '5px 8px 1px',
                     flex: '0 0 auto',
                   },
                 },
@@ -979,25 +1502,42 @@ window.__ModuleLoader__.load({
                   'span',
                   {
                     style: {
-                      fontWeight: isToday ? 700 : 400,
-                      color: isToday ? COLOR.brand : COLOR.text,
+                      fontSize: 13,
+                      fontWeight: active ? 700 : 600,
+                      color: isToday ? COLOR.brand : WEEK_PALETTE[wd],
+                      lineHeight: 1.15,
                     },
                   },
                   String(Number(day.slice(8))),
                 ),
-                c ? h('span', { style: { fontSize: 10, color: COLOR.dim } }, String(c)) : null,
+                c ? h('span', { style: { fontSize: 10.5, color: COLOR.dim } }, String(c)) : null,
               ),
+              // proportional colour segments, inset from the cell edges like the design frame
               h(
                 'div',
-                { style: { flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, minWidth: 0 } },
+                {
+                  style: {
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: 3,
+                    minHeight: 0,
+                    minWidth: 0,
+                    padding: '3px 6px 8px',
+                  },
+                },
                 wsOnDay.length
                   ? wsOnDay.map((x) => {
                       const color = colorMap.get(x.wsId) || COLOR.brand
                       const label = String(wsTitle.get(x.wsId) || x.wsId)
+                      const dimmed = wsFilter && x.wsId !== wsFilter
                       return h(
                         'div',
                         {
                           key: x.wsId,
+                          ref: (el) => {
+                            if (el) el.setAttribute('data-insight-ws', x.wsId)
+                          },
                           onClick: (event) => {
                             event.stopPropagation()
                             setSelectedDay(day)
@@ -1007,14 +1547,14 @@ window.__ModuleLoader__.load({
                           style: {
                             flexGrow: x.count,
                             flexBasis: 0,
-                            minWidth: 10,
+                            minWidth: 8,
                             height: '100%',
                             display: 'flex',
-                            alignItems: 'flex-start',
+                            alignItems: 'center',
                             justifyContent: 'center',
-                            padding: '2px 0',
-                            background: color,
-                            opacity: 0.92,
+                            borderRadius: 4,
+                            background: 'color-mix(in srgb, ' + color + ' 78%, transparent)',
+                            opacity: dimmed ? 0.22 : 1,
                             overflow: 'hidden',
                             cursor: 'pointer',
                           },
@@ -1024,13 +1564,13 @@ window.__ModuleLoader__.load({
                           {
                             style: {
                               writingMode: 'vertical-rl',
-                              textOrientation: 'upright',
-                              fontSize: 9,
+                              textOrientation: 'mixed',
+                              fontSize: 10.5,
                               lineHeight: 1.05,
                               color: '#fff',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
-                              textShadow: '0 1px 1px rgba(0, 0, 0, 0.45)',
+                              textShadow: '0 1px 2px rgba(0, 0, 0, 0.4)',
                             },
                           },
                           label,
@@ -1048,7 +1588,10 @@ window.__ModuleLoader__.load({
           : null,
         h(
           'div',
-          { style: { marginTop: 14, border: '1px solid ' + COLOR.border, borderRadius: 10, background: COLOR.layer1, overflow: 'hidden' } },
+          {
+            ref: detailRef,
+            style: { marginTop: 14, border: '1px solid ' + COLOR.border, borderRadius: 10, background: COLOR.layer1, overflow: 'hidden' },
+          },
           h(
             'div',
             { style: { padding: '8px 12px', fontSize: 12, fontWeight: 600, display: 'flex', justifyContent: 'space-between' } },
@@ -1125,6 +1668,7 @@ window.__ModuleLoader__.load({
                 ),
             )
           : null,
+        peek ? renderTip() : null,
       )
     }
 

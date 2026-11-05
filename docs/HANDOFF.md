@@ -2,6 +2,16 @@
 
 > 这个文件是给「做宣传视频」的新会话看的。插件本身在 `C:\Users\23077\Desktop\work_place\dsh-plugins\workspace-insight`（不是当前工作区「智慧树」）。
 
+## 宣传片已完成（2026-11-05）
+
+- 成片：`docs/launch/promo.mp4`（1920×1080 · 30fps · 31s · −14 LUFS），封面 `docs/launch/promo-cover.png`
+- 源码工程：`C:\Users\23077\Desktop\work_place\dsh-plugins\workspace-insight-promo\`
+  （`brief.md` 分镜、`index.html`/`views.js` 画面、`timeline.js` 时钟、`score.mjs` 配乐）
+- 重建：`cd <promo> && sh build.sh --dpr 2`（先跑确定性检查，再出片 + 文字框景 + 技术验收，约 4–5 分钟）
+- B 站文案：promo 工程的 `docs/b站文案.md`
+- **画面全部用 Canvas 重绘的示意界面，没有录屏；工作区名/会话/日期分布都是编的**，只有「≈40 个工作区、84 天、400+ 段对话」这个量级来自本仓库 README。改文案时别把这些说成真实数据。
+- 技术验收全 PASS（尺寸/帧率/时长/音轨/无黑帧/响度/真峰值）；`qa/` 下有接触表、手机尺寸抽帧和审片材料。
+
 ## 一句话现状
 
 插件 **已开源发布**：npm `0.2.0` 是 `latest`，GitHub 仓库和 `v0.2.0` Release 都在，本机以 `link:` 方式装在 `desktop` profile 里，改代码即时生效。
