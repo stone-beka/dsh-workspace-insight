@@ -1,12 +1,12 @@
 # 交接：宣传视频（新会话从这里开始）
 
-> 这个文件是给「做宣传视频」的新会话看的。插件本身在 `C:\Users\23077\Desktop\work_place\dsh-plugins\workspace-insight`（不是当前工作区「智慧树」）。
+> 这个文件是给「做宣传视频」的新会话看的。插件本身在 `C:\Users\23077\Desktop\work_place\插件开发\工作区视图`（桌面版以 `link:` 方式装进 desktop profile）。
 
 ## 宣传片已完成（2026-11-05，v0.2.1 版）
 
 - 成片：`docs/launch/promo.mp4`（1920×1080 · 30fps · **36s** · −14 LUFS；片中的安装镜头画的是**插件页「添加插件」对话框**（输入框里是包名 `dsh-workspace-insight`），落版写「在设置 → 插件 → 添加插件里粘贴这个包名」，不再出现带 `--profile` 的命令（桌面版的 desktop profile 由应用独占，终端命令会被拒绝；`dsh web` 用户的 CLI 命令放在 README 和简介里））——0.2.0 那版（31s）已被这版替换：多了总览「今日热力」约 5 秒的节拍 + 时间轴到安装之间的过渡拍（窗口拉远淡出、音乐留气口），落版 v0.2.1
 - 封面（两张，B 站不同位置用不同比例）：`docs/launch/promo-cover-4x3.png`（1440×1080，首页视频卡片）、`docs/launch/promo-cover.png`（1920×1080，个人空间/头图）。版式是**左右排布**：左边大标题「工作区洞察」+ 三个视图各自的介绍（总览：谁还在用、谁该归档 / 月视图：每天按工作区对话数分色 / 时间轴：84 天矩阵，点开直达对话）+ 绿色「0.2.1 新增 · 今天又在忙什么？」；右边是**月视图日历从左往右渐变浮现**、底部渐隐。都是合成的，不是截 UI
-- 源码工程：`C:\Users\23077\Desktop\work_place\dsh-plugins\workspace-insight-promo\`
+- 源码工程：`C:\Users\23077\Desktop\work_place\插件开发\工作区视图\promo\`
   （`brief.md` 分镜、`index.html`/`views.js` 画面、`timeline.js` 时钟、`score.mjs` 配乐）
 - 重建：`cd <promo> && sh build.sh --dpr 2`（先跑确定性检查，再出片 + 文字框景 + 技术验收，约 4–5 分钟；2026-11-05 实测 1080p/dpr2 约 86 秒出片）
 - B 站文案：promo 工程的 `docs/b站文案.md`（已按 34s / v0.2.1 改写）
